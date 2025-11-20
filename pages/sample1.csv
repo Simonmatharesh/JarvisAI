@@ -1,0 +1,63 @@
+ID,FullName,Department,BaseSalary,Role,Gender
+E101,Aurora,Marketing,15500,Analyst,Female
+E102,Blake,Engineering,12500,Developer,Male
+E103,Celia,HR,18500,Team Lead,Female
+E104,Damon,Engineering,11200,Tester,Male
+E105,Elena,Finance,22500,Manager,Female
+E106,Felix,Marketing,9500,Intern,Male
+E107,Gina,Finance,14500,Developer,Female
+E108,Hugo,Engineering,16500,Engineer,Male
+E109,Iris,HR,13500,Designer,Female
+E110,Jasper,Engineering,14200,Developer,Male
+E111,Kiera,Marketing,12800,Analyst,Female
+E112,Leo,Finance,17200,Accountant,Male
+E113,Mila,HR,9800,Coordinator,Female
+E114,Nathan,Engineering,16000,Engineer,Male
+E115,Olivia,Design,15000,Designer,Female
+E116,Parker,Marketing,12000,Strategist,Male
+E117,Quinn,IT,13800,System Admin,Non-Binary
+E118,Riley,Finance,19000,Manager,Female
+E119,Silas,Engineering,11000,Tester,Male
+E120,Tara,HR,10500,Recruiter,Female
+E121,Ulrich,IT,17500,Security Analyst,Male
+E122,Vera,Design,13200,UX Researcher,Female
+E123,Wyatt,Engineering,16800,Team Lead,Male
+E124,Xena,Marketing,9400,Intern,Female
+E125,Yusuf,Finance,15500,Analyst,Male
+E126,Zara,HR,14900,Specialist,Female
+E127,Adrian,Engineering,18000,Developer,Male
+E128,Brielle,Design,14300,Designer,Female
+E129,Carter,IT,15800,Engineer,Male
+E130,Daphne,Finance,21000,Manager,Female
+E131,Elias,Marketing,13400,Content Writer,Male
+E132,Freya,HR,12000,Coordinator,Female
+E133,Graham,Engineering,14500,Engineer,Male
+E134,Hailey,Design,13900,UI Designer,Female
+E135,Ian,Finance,12500,Accountant,Male
+E136,Julia,Marketing,16200,Brand Manager,Female
+E137,Karl,IT,11900,Technician,Male
+E138,Luna,Design,17000,Lead Designer,Female
+E139,Mason,Engineering,10800,Tester,Male
+E140,Nora,HR,14000,HR Partner,Female
+E141,Oscar,Finance,17800,Auditor,Male
+E142,Phoebe,Marketing,9600,Intern,Female
+E143,Quentin,Engineering,18500,Team Lead,Male
+E144,Rachel,Design,15200,Designer,Female
+E145,Sam,IT,14800,System Admin,Male
+E146,Tiana,Finance,16700,Analyst,Female
+E147,Umar,Marketing,12500,SEO Specialist,Male
+E148,Valerie,HR,11500,Recruiter,Female
+E149,Weston,Engineering,17200,Engineer,Male
+E150,Ximena,Design,13600,Product Designer,Female
+E151,Yara,Finance,22000,Senior Manager,Female
+E152,Zane,IT,13200,Support Engineer,Male
+E153,Amber,Marketing,14200,Strategist,Female
+E154,Bryce,Engineering,16500,Developer,Male
+E155,Camila,HR,12800,Specialist,Female
+E156,Derek,Finance,9700,Assistant,Male
+E157,Erin,Design,14700,UX Designer,Female
+E158,Foster,IT,18800,Security Analyst,Male
+E159,Giselle,Marketing,15500,Brand Strategist,Female
+E160,Harvey,Engineering,14000,Developer,Male
+
+
