@@ -299,7 +299,6 @@ def handle_upload(contents):
         Output("chat-output", "children", allow_duplicate=True),
         Output("chat-output", "style", allow_duplicate=True),
         Output("question", "value", allow_duplicate=True),
-       
         Output("input-box-state", "data", allow_duplicate=True),
     ],
     [
@@ -332,30 +331,31 @@ def handle_chat(chat_clicks, s1, s2, s3, question_value, uploaded_data, cur_chat
     updated_charts = []
     updated_chat = []
     updated_chat_style = cur_chat_style or {"display": "none"}
-    loading_visible = False
     input_state = input_box_state or {"is_fixed": False}
 
     if not uploaded_data:
-        return [], [dcc.Markdown("Please upload a dataset first.")], updated_chat_style, question_value, False, input_state
+        return [], [dcc.Markdown("Please upload a dataset first.")], updated_chat_style, question_value, input_state
 
     df = pd.DataFrame(uploaded_data)
 
     if not (chat_clicks or triggered_id in suggestions):
-        return [], [], updated_chat_style, question_value, False, input_state
+        return [], [], updated_chat_style, question_value, input_state
 
-    loading_visible = True
-
+    # -----------------------------
+    # CACHE CHECK WITH FALLBACK
+    # -----------------------------
     try:
-        # -----------------------------
-        #  CACHE CHECK
-        # -----------------------------
         cache_key = generate_cache_key(df, question_value)
         cached = get_cached_response(cache_key)
+    except:
+        cached = None
+
+    try:
         if cached:
             chart_blocks, global_summary, chart_plan = cached
         else:
             # -----------------------------
-            #   1) HIGH-LEVEL DATA SUMMARY
+            # 1) HIGH-LEVEL DATA SUMMARY
             # -----------------------------
             numeric_stats = df.describe(include='all', percentiles=[0.25, 0.5, 0.75]).fillna("").to_dict()
             col_dtypes = {col: str(df[col].dtype) for col in df.columns}
@@ -390,7 +390,6 @@ Your output should be:
 """
             global_summary = client.generate_content(global_summary_prompt).text.strip()
 
-            # Create summary UI block
             summary_block = dmc.Paper(
                 dcc.Markdown(f"### 📊 Overall Dataset Summary\n{global_summary}"),
                 radius="md",
@@ -400,7 +399,7 @@ Your output should be:
             )
 
             # -----------------------------
-            #     2) GET CHART PLAN
+            # 2) GET CHART PLAN
             # -----------------------------
             light_df_sample = df.head(7).to_dict(orient="records")
             chart_request_prompt = f"""
@@ -432,28 +431,25 @@ No extra text.
 
             chart_plan = parsed.get("charts", [])
             chart_funcs = {"bar": px.bar, "line": px.line, "pie": px.pie, "scatter": px.scatter, "histogram": px.histogram}
-            chart_blocks = [summary_block]  # prepend global summary
+            chart_blocks = [summary_block]
 
             # -----------------------------
-#   3) BUILD EACH CHART + DEEP INSIGHT
-# -----------------------------
+            # 3) BUILD EACH CHART + DEEP INSIGHT
+            # -----------------------------
             for cfg in chart_plan:
-                
                 ctype = cfg.get("type")
                 func = chart_funcs.get(ctype)
                 if not func:
                     continue
 
-                fig = None  # Initialize
-                # Premium color palettes
-                seq_colors = px.colors.sequential.Plasma  # for numeric/continuous
-                cat_colors = px.colors.qualitative.Bold   # for categorical/pie
+                fig = None
+                seq_colors = px.colors.sequential.Plasma
+                cat_colors = px.colors.qualitative.Bold
 
                 if ctype == "pie":
                     names = cfg.get("names")
                     values = cfg.get("values")
                     grouped = df.groupby(names)[values].sum().to_dict()
-                    # Use categorical palette for pie
                     fig = func(df, names=names, values=values, color=names, color_discrete_sequence=cat_colors)
                     stats_payload = {"type": ctype, "group_totals": grouped}
 
@@ -462,16 +458,9 @@ No extra text.
                     y = cfg.get("y")
                     if y:
                         grouped = df.groupby(x)[y].agg(["mean", "min", "max", "std"]).fillna("").to_dict()
+                        fig = func(df, x=x, y=y, color=y, color_continuous_scale=seq_colors)
                     else:
                         grouped = {}
-
-                    if ctype in ["bar", "scatter", "line", "histogram"]:
-                        if y:
-                            # Conditional coloring for numeric y
-                            fig = func(df, x=x, y=y, color=y, color_continuous_scale=seq_colors)
-                        else:
-                            fig = func(df, x=x, y=y)
-                    else:
                         fig = func(df, x=x, y=y)
 
                     stats_payload = {"type": ctype, "stats": grouped, "x": x, "y": y}
@@ -479,9 +468,8 @@ No extra text.
                 fig.update_layout(
                     height=350,
                     margin=dict(l=20, r=20, t=40, b=20),
-                    template="plotly_white"  # modern clean background
+                    template="plotly_white"
                 )
-
 
                 insight_prompt = f"""
 You are an expert statistical analyst.
@@ -519,12 +507,15 @@ STRICT RULES:
                 )
 
             # -----------------------------
-            #  SAVE TO CACHE
+            # SAVE TO CACHE (wrapped in try)
             # -----------------------------
-            set_cached_response(cache_key, (chart_blocks, global_summary, chart_plan))
+            try:
+                set_cached_response(cache_key, (chart_blocks, global_summary, chart_plan))
+            except:
+                pass
 
         # -----------------------------
-        #   FINAL UI RETURNS
+        # FINAL UI RETURNS
         # -----------------------------
         updated_chat = [
             html.Div(
