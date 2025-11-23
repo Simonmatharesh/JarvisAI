@@ -22,13 +22,14 @@ def jumbotron():
 
 def upload_modal():
     return dmc.Modal(
-        title="Upload CSV File",
+        title="Upload File",
         id="upload-modal",
         children=[
             dcc.Upload(
                 id="upload-data",
-                children=dmc.Button("Select CSV File"),
-                multiple=False
+                children=dmc.Button("Select CSV or Image File"),
+                multiple=True,
+                accept=".csv, image/*",
             ),
             html.Div(id="upload-status")
         ]

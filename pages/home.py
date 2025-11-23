@@ -10,6 +10,9 @@ import hashlib
 import utils
 import json
 import numpy as np 
+import base64
+import io
+from PIL import Image
 
 register_page(__name__, path="/")
 
@@ -282,16 +285,46 @@ def open_upload_modal(n_clicks):
 def handle_upload(contents):
     if not contents:
         return [no_update] * 5
-    df, error = utils.parse_csv(contents)
-    if error:
-        return no_update, dmc.Text(error, c="red"), no_update, no_update, no_update
-    data_dict = df.to_dict("list") if not df.empty else {}
-    chart_editor = dce.DashChartEditor(
-        id="chart-editor",
-        dataSources=data_dict,
-        style={"display": "block"}
-    )
-    return data_dict, dmc.Text(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns", c="green"), chart_editor, False, False
+
+    # contents is a list, even for a single file
+    content_string_full = contents[0]  # <-- get first item
+
+    content_type, content_string = content_string_full.split(",")
+    decoded = base64.b64decode(content_string)
+
+    # CSV
+    if "csv" in content_type:
+        df, error = utils.parse_csv(content_string_full)  # pass the full contents string to your parser
+        if error:
+            return no_update, dmc.Text(f"Error loading CSV: {error}", c="red"), no_update, True, True
+        if df.empty:
+            return no_update, dmc.Text("Uploaded CSV is empty.", c="red"), no_update, True, True
+
+        data_dict = df.to_dict("list")
+        chart_editor = dce.DashChartEditor(
+            id="chart-editor",
+            dataSources=data_dict,
+            style={"display": "block"}
+        )
+
+        return data_dict, dmc.Text(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns", c="green"), chart_editor, False, False
+
+    # IMAGE
+    elif "image" in content_type:
+        try:
+            image = Image.open(io.BytesIO(decoded))
+            # Store image in uploaded-data (you can store as bytes or base64)
+            data_dict = {"image": content_string}  # or decoded bytes
+            chart_editor = html.Div()  # empty chart editor for now
+            return data_dict, dmc.Text("Image uploaded. AI analysis will run.", c="blue"), chart_editor, False, False
+        except Exception as e:
+            return no_update, dmc.Text(f"Error loading image: {e}", c="red"), no_update, True, True
+
+
+    # OTHER
+    else:
+        return no_update, dmc.Text("Unsupported file type.", c="red"), no_update, True, True
+
 
 @callback(
     [
@@ -333,8 +366,12 @@ def handle_chat(chat_clicks, s1, s2, s3, question_value, uploaded_data, cur_chat
     updated_chat_style = cur_chat_style or {"display": "none"}
     input_state = input_box_state or {"is_fixed": False}
 
+    
+
     if not uploaded_data:
         return [], [dcc.Markdown("Please upload a dataset first.")], updated_chat_style, question_value, input_state
+    
+    
 
     df = pd.DataFrame(uploaded_data)
 
@@ -600,4 +637,4 @@ def handle_suggestion_click(s1_clicks, s2_clicks, s3_clicks):
         "suggestion-2": "What are the key trends in my dataset?",
         "suggestion-3": "Can you summarize my data?",
     }
-    return suggestions.get(triggered_id, no_update)
+    return suggestions.get(triggered_id, no_update)  
