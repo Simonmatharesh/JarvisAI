@@ -12,6 +12,9 @@ import json
 import numpy as np 
 import base64
 import io
+from dash import html, dcc, callback_context, no_update
+from dash.dependencies import Input, Output, State, ALL, MATCH
+
 from PIL import Image
 
 register_page(__name__, path="/")
@@ -248,6 +251,16 @@ html.Div(
         dcc.Store(id="uploaded-data"),
         
         dcc.Store(id="input-box-state", data={"is_fixed": False}),
+        # At the bottom of your layout Stack, before the closing ]
+        dmc.Modal(
+            id="drill-modal",
+            opened=False,          # starts closed
+            title="Subset Analysis",
+            children=[],           # will be filled dynamically by callback
+            size="xl",             # optional: make modal wider
+            overlayProps={"blur": 3, "opacity": 0.5},  # optional styling
+        )
+
     ],
     gap="lg",
     p="lg",
@@ -469,6 +482,7 @@ No extra text.
             chart_plan = parsed.get("charts", [])
             chart_funcs = {"bar": px.bar, "line": px.line, "pie": px.pie, "scatter": px.scatter, "histogram": px.histogram}
             chart_blocks = [summary_block]
+            chart_index = 0
 
             # -----------------------------
             # 3) BUILD EACH CHART + DEEP INSIGHT
@@ -509,28 +523,33 @@ No extra text.
                 )
 
                 insight_prompt = f"""
-You are an expert statistical analyst.
+            You are an expert statistical analyst.
 
-Analyze ONLY using this exact numeric summary for a chart:
-{json.dumps(stats_payload, indent=2)}
+            Analyze ONLY using this exact numeric summary for a chart:
+            {json.dumps(stats_payload, indent=2)}
 
-Produce **very concise insights (3–5 bullet points max)**:
-- Each bullet MUST be factual and based only on provided numbers.
-- Highlight only the strongest pattern, biggest difference, or main anomaly.
-- No storytelling, no fluff, no long paragraphs.
-- No rephrasing of the chart type.
+            Produce **very concise insights (3–5 bullet points max)**:
+            - Each bullet MUST be factual and based only on provided numbers.
+            - Highlight only the strongest pattern, biggest difference, or main anomaly.
+            - No storytelling, no fluff, no long paragraphs.
+            - No rephrasing of the chart type.
 
-STRICT RULES:
-• Only use the provided stats.
-• Do not guess missing values.
-• Keep bullets short, direct, and quantitative.
-"""
+            STRICT RULES:
+            • Only use the provided stats.
+            • Do not guess missing values.
+            • Keep bullets short, direct, and quantitative.
+            """
                 insight = client.generate_content(insight_prompt).text.strip()
 
+                # append each chart INSIDE the loop
                 chart_blocks.append(
                     html.Div(
                         [
-                            dcc.Graph(figure=fig, style={"width": "100%"}),
+                            dcc.Graph(
+                                id={"type": "chart", "index": chart_index},
+                                figure=fig,
+                                style={"width": "100%"}
+                            ),
                             dmc.Paper(
                                 dcc.Markdown(f"### Insight for this chart\n{insight}"),
                                 radius="md",
@@ -538,10 +557,16 @@ STRICT RULES:
                                 p="md",
                                 style={"marginTop": "12px", "background": "#f8fafc"},
                             ),
+                            html.Div(
+                                id={"type": "drill-output", "index": chart_index},
+                                style={"marginTop": "20px"}
+                            ),
                         ],
-                        style={"marginBottom": "28px"},
+                        style={"marginBottom": "40px", "padding": "10px", "border": "1px solid #eee", "borderRadius": "8px"},
                     )
                 )
+
+                chart_index += 1
 
             # -----------------------------
             # SAVE TO CACHE (wrapped in try)
@@ -638,3 +663,138 @@ def handle_suggestion_click(s1_clicks, s2_clicks, s3_clicks):
         "suggestion-3": "Can you summarize my data?",
     }
     return suggestions.get(triggered_id, no_update)  
+
+from dash import html, dcc
+import dash_mantine_components as dmc
+import plotly.express as px
+
+# Store the modal open state
+dmc.Modal(id="drill-modal", opened=False, title="Subset Analysis", children=[])
+
+# Drilldown callback
+@callback(
+    Output("drill-modal", "opened"),
+    Output("drill-modal", "children"),
+    Input({"type": "chart", "index": ALL}, "clickData"),
+    State("uploaded-data", "data"),
+    prevent_initial_call=True
+)
+def open_drill_modal(all_clicks, uploaded_data):
+    if not uploaded_data:
+        return False, no_update
+
+    ctx = callback_context
+    if not ctx.triggered:
+        return False, no_update
+
+    clickData = ctx.triggered[0]["value"]
+    if not clickData or "points" not in clickData or not clickData["points"]:
+        return False, dmc.Text("No data for this chart.", c="red")
+
+    df = pd.DataFrame(uploaded_data)
+    point = clickData["points"][0]
+    clicked_x = point.get("x") or point.get("label") or point.get("customdata")
+    clicked_x_str = str(clicked_x)
+
+    # Find the column containing the clicked value
+    filter_col = None
+    for col in df.columns:
+        if clicked_x_str in df[col].astype(str).values:
+            filter_col = col
+            break
+
+    if filter_col is None:
+        return False, dmc.Text("Could not determine column to filter.", c="red")
+
+    subset = df[df[filter_col].astype(str) == clicked_x_str]
+    if subset.empty:
+        return False, dmc.Text("No records found for this category.", c="red")
+
+    # Generate charts with error handling
+    try:
+        subset_charts = generate_subset_charts(subset)
+        if not subset_charts:
+            raise ValueError("No charts generated for this subset.")
+    except Exception as e:
+        return False, dmc.Text(f"Chart generation failed: {str(e)}", c="red")
+
+    # Modal content: header + charts
+    modal_content = dmc.Stack(
+            [dmc.Text(
+        f"📌 Drilldown Analysis: {filter_col} = {clicked_x_str}",
+        fz="lg",   # font size
+        fw=700     # font weight
+    )
+        ]
+        + subset_charts,
+        gap="md"
+    )
+
+    return True, modal_content
+
+def generate_subset_charts(df_subset):
+    charts = []
+
+    sample = df_subset.head(7).to_dict("records")
+
+    # Ask AI for new chart plan
+    plan_prompt = f"""
+    You are a visualization expert.
+    Dataset subset:
+    {json.dumps(sample, indent=2)}
+    Return ONLY JSON:
+    {{
+      "charts": [
+        {{"type": "...", "x": "...", "y": "...", "names": "...", "values": "..."}}
+      ]
+    }}
+    """
+
+    resp = client.generate_content(plan_prompt).text.strip()
+
+    # Robust JSON parsing
+    try:
+        parsed = json.loads(resp[resp.find("{"): resp.rfind("}") + 1])
+    except Exception as e:
+        return [dmc.Text(f"Chart plan error: {str(e)}", c="red")]
+
+    chart_plan = parsed.get("charts", [])
+    funcs = {
+        "bar": px.bar,
+        "line": px.line,
+        "pie": px.pie,
+        "scatter": px.scatter,
+        "histogram": px.histogram
+    }
+
+    for cfg in chart_plan:
+        t = cfg.get("type")
+        f = funcs.get(t)
+        if not f:
+            continue
+
+        try:
+            if t == "pie":
+                fig = f(df_subset, names=cfg.get("names"), values=cfg.get("values"))
+            else:
+                fig = f(df_subset, x=cfg.get("x"), y=cfg.get("y"))
+
+            fig.update_layout(
+                height=350,
+                margin=dict(l=20, r=20, t=40, b=20),
+                template="plotly_white"
+            )
+
+            charts.append(
+                dmc.Paper(
+                    dcc.Graph(figure=fig),
+                    radius="md",
+                    shadow="sm",
+                    p="md",
+                    style={"marginBottom": "20px"}
+                )
+            )
+        except Exception as e:
+            charts.append(dmc.Text(f"Chart generation error: {str(e)}", c="red"))
+
+    return charts
