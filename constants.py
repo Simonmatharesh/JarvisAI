@@ -1,6 +1,7 @@
 import os
 import google.generativeai as genai
 import diskcache
+import openai
 from dotenv import load_dotenv
 
 
@@ -9,9 +10,13 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("❌ GEMINI_API_KEY not found in .env")
 
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    raise ValueError("❌ OPENAI_API_KEY not found in .env")
+openai.api_key = OPENAI_API_KEY
 
 genai.configure(api_key=GEMINI_API_KEY)
-client = genai.GenerativeModel("gemini-2.0-flash") 
+client = genai.GenerativeModel("gemini-2.5-flash-lite") 
 
 cache = diskcache.Cache("./ai_cache")
 

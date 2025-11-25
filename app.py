@@ -10,6 +10,13 @@ import google.generativeai as genai
 from constants import redis_instance
 import utils
 
+from constants import cache
+
+# Clear cache on startup
+cache.clear()
+print("✅ Cache cleared")
+
+
 
 load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")

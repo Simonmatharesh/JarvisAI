@@ -4,6 +4,7 @@ import dash_mantine_components as dmc
 import dash_chart_editor as dce
 import plotly.express as px
 from constants import client
+import openai
 from utils import generate_cache_key, get_cached_response, set_cached_response
 import diskcache
 import hashlib
@@ -12,6 +13,11 @@ import json
 import numpy as np 
 import base64
 import io
+import uuid
+from gtts import gTTS
+from google.ai.generativelanguage_v1beta2 import types
+
+
 from dash import html, dcc, callback_context, no_update
 from dash.dependencies import Input, Output, State, ALL, MATCH
 
@@ -540,6 +546,12 @@ No extra text.
             • Keep bullets short, direct, and quantitative.
             """
                 insight = client.generate_content(insight_prompt).text.strip()
+                audio_src = text_to_speech_gtts(insight)
+                if audio_src:
+                    print(f"[DEBUG] TTS generated for chart {chart_index}")
+                else:
+                    print(f"[DEBUG] TTS failed for chart {chart_index}")
+
 
                 # append each chart INSIDE the loop
                 chart_blocks.append(
@@ -551,15 +563,30 @@ No extra text.
                                 style={"width": "100%"}
                             ),
                             dmc.Paper(
-                                dcc.Markdown(f"### Insight for this chart\n{insight}"),
+                                [
+                                    dcc.Markdown(f"### Insight for this chart\n{insight}"),
+                                    dcc.Store(
+                                            id={"type": "tts-store", "index": chart_index},
+                                            data=insight
+                                        ),
+                                    dmc.Button(
+                                        "🔊 Play Audio",
+                                        id={"type": "tts-button", "index": chart_index},
+                                        size="sm",
+                                        variant="outline",
+                                        style={"marginTop": "5px"}
+                                    ),
+                                    html.Audio(
+                                        id={"type": "tts-audio", "index": chart_index},
+                                        controls=True,
+                                        src=audio_src,  # will be filled dynamically
+                                        style={"marginTop": "5px", "width": "100%"}
+                                    )
+                                ],
                                 radius="md",
                                 shadow="sm",
                                 p="md",
                                 style={"marginTop": "12px", "background": "#f8fafc"},
-                            ),
-                            html.Div(
-                                id={"type": "drill-output", "index": chart_index},
-                                style={"marginTop": "20px"}
                             ),
                         ],
                         style={"marginBottom": "40px", "padding": "10px", "border": "1px solid #eee", "borderRadius": "8px"},
@@ -595,7 +622,7 @@ No extra text.
                         "borderRadius": "12px",
                         "border": "1px solid #d0d7ff",
                         "width": "280px",
-                        "marginLeft": "845px",
+                        "marginLeft": "780px",
                     },
                 )
             )
@@ -798,3 +825,19 @@ def generate_subset_charts(df_subset):
             charts.append(dmc.Text(f"Chart generation error: {str(e)}", c="red"))
 
     return charts
+
+def text_to_speech_gtts(text: str, lang: str = "en", tld="co.uk") -> str:
+    """
+    Convert text to speech using gTTS (free).
+    Returns a base64 audio data URL.
+    """
+    try:
+        mp3_fp = io.BytesIO()
+        tts = gTTS(text, lang=lang)
+        tts.write_to_fp(mp3_fp)
+        mp3_fp.seek(0)
+        b64 = base64.b64encode(mp3_fp.read()).decode("utf-8")
+        return f"data:audio/mp3;base64,{b64}"
+    except Exception as e:
+        print("[TTS ERROR]", e)
+        return ""
