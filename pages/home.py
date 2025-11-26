@@ -883,3 +883,51 @@ def text_to_speech_gtts(text: str, lang: str = "en", tld="co.uk") -> str:
 )
 def update_language(lang):
     return lang
+
+@callback(
+    [
+        Output("suggestion-1", "children"),
+        Output("suggestion-2", "children"),
+        Output("suggestion-3", "children"),
+    ],
+    Input("selected-language", "data")
+)
+def update_suggestion_labels(lang):
+    if lang == "ar":
+        return [
+            "ما هي الرسوم البيانية التي يمكنني استخدامها؟",
+            "ما هي الاتجاهات الرئيسية في بياناتي؟",
+            "هل يمكنك تلخيص بياناتي؟"
+        ]
+    else:  # default English
+        return [
+            "What charts can I use?",
+            "What are the key trends in my dataset?",
+            "Can you summarize my data?"
+        ]
+    
+    
+
+@callback(
+    Output("chart-editor-container", "children"),
+    Output("question", "placeholder"),
+    Input("selected-language", "data")
+)
+def update_ui_text(lang):
+    if lang == "ar":
+        instruction_text = "قم بتحميل مجموعة بيانات للبدء في تصور بياناتك."
+        placeholder_text = "اسألني أي شيء عن مجموعة بياناتك..."
+    else:
+        instruction_text = "Upload a dataset to start visualizing your data."
+        placeholder_text = "Ask me anything about your dataset..."
+    
+    # Update the instruction text div
+    instruction_div = dmc.Text(
+        instruction_text,
+        c="dimmed",
+        size=30,
+        fw=600,
+        style={"textAlign": "center", "padding": "10px","lineHeight": "1.8","height": "22vh"},
+    )
+
+    return [instruction_div], placeholder_text
