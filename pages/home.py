@@ -28,7 +28,22 @@ register_page(__name__, path="/")
 
 layout = dmc.Stack(
     [
-        
+        dmc.Group(
+            [
+                dmc.Select(
+                    id="language-select",
+                    label="Select Language / اختر اللغة",
+                    data=[
+                        {"value": "en", "label": "English"},
+                        {"value": "ar", "label": "العربية"},
+                    ],
+                    value="en",  # default
+                    style={"width": "200px"},
+                )
+            ],
+            justify="center",  # ✅ center horizontally
+            style={"marginTop": "2px", "marginBottom": "2px"},
+        ),       
        
 
         html.Div(
@@ -253,6 +268,7 @@ html.Div(
         
         utils.upload_modal(),
 
+        dcc.Store(id="selected-language", data="en"),
         
         dcc.Store(id="uploaded-data"),
         
@@ -364,10 +380,12 @@ def handle_upload(contents):
         State("uploaded-data", "data"),
         State("chat-output", "style"),
         State("input-box-state", "data"),
+        State("selected-language", "data"),
+
     ],
     prevent_initial_call=True,
 )
-def handle_chat(chat_clicks, s1, s2, s3, question_value, uploaded_data, cur_chat_style, input_box_state):
+def handle_chat(chat_clicks, s1, s2, s3, question_value, uploaded_data, cur_chat_style, input_box_state, selected_language):
     ctx = callback_context
     triggered_id = ctx.triggered[0]["prop_id"].split(".")[0]
 
@@ -444,7 +462,13 @@ Your output should be:
 ### Key Insights Related to the Question
 <analysis here>
 """
-            global_summary = client.generate_content(global_summary_prompt).text.strip()
+            if selected_language == "ar":
+                prompt_text = f"أجب على هذا السؤال بناءً على البيانات:\n{global_summary_prompt}"
+            else:
+                prompt_text = global_summary_prompt
+
+            global_summary = client.generate_content(prompt_text).text.strip()
+
 
             summary_block = dmc.Paper(
                 dcc.Markdown(f"### 📊 Overall Dataset Summary\n{global_summary}"),
@@ -528,25 +552,35 @@ No extra text.
                     template="plotly_white"
                 )
 
-                insight_prompt = f"""
-            You are an expert statistical analyst.
+                if selected_language == "ar":
+                    prompt_text = f"""
+                أجب على هذا السؤال بناءً على البيانات التالية (موجز باللغة العربية):
+                {json.dumps(stats_payload, indent=2)}
 
-            Analyze ONLY using this exact numeric summary for a chart:
-            {json.dumps(stats_payload, indent=2)}
+                انتج **نقاط سريعة (3-5 نقاط فقط)**:
+                - يجب أن تكون كل نقطة واقعية ومبنية فقط على الأرقام المقدمة.
+                - أبرز فقط النمط الأقوى أو أكبر فرق أو أهم شذوذ.
+                - بدون قصة، بدون حشو، بدون فقرات طويلة.
+                - لا تعيد صياغة نوع الرسم البياني.
+                """
+                else:
+                    prompt_text = f"""
+                You are an expert statistical analyst.
 
-            Produce **very concise insights (3–5 bullet points max)**:
-            - Each bullet MUST be factual and based only on provided numbers.
-            - Highlight only the strongest pattern, biggest difference, or main anomaly.
-            - No storytelling, no fluff, no long paragraphs.
-            - No rephrasing of the chart type.
+                Analyze ONLY using this exact numeric summary for a chart:
+                {json.dumps(stats_payload, indent=2)}
 
-            STRICT RULES:
-            • Only use the provided stats.
-            • Do not guess missing values.
-            • Keep bullets short, direct, and quantitative.
-            """
-                insight = client.generate_content(insight_prompt).text.strip()
-                audio_src = text_to_speech_gtts(insight)
+                Produce **very concise insights (3–5 bullet points max)**:
+                - Each bullet MUST be factual and based only on provided numbers.
+                - Highlight only the strongest pattern, biggest difference, or main anomaly.
+                - No storytelling, no fluff, no long paragraphs.
+                - No rephrasing of the chart type.
+                """
+
+                insight = client.generate_content(prompt_text).text.strip()
+
+                audio_src = text_to_speech_gtts(insight, lang="ar" if selected_language == "ar" else "en")
+
                 if audio_src:
                     print(f"[DEBUG] TTS generated for chart {chart_index}")
                 else:
@@ -841,3 +875,11 @@ def text_to_speech_gtts(text: str, lang: str = "en", tld="co.uk") -> str:
     except Exception as e:
         print("[TTS ERROR]", e)
         return ""
+    
+@callback(
+    Output("selected-language", "data"),
+    Input("language-select", "value"),
+    prevent_initial_call=True
+)
+def update_language(lang):
+    return lang
