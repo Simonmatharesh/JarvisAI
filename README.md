@@ -1,88 +1,74 @@
-Interactive Data Dashboard — README.md
-Overview
+# Interactive Data Dashboard
 
-An interactive, AI-powered analytics dashboard built using Dash, Plotly, and Dash Mantine Components.
-Users can upload any dataset (CSV/Excel), automatically generate visualizations, explore drill-down analytics, and get AI-generated chart insights with Text-to-Speech (TTS).
+## Overview
+An interactive, AI-powered analytics dashboard built using **Dash**, **Plotly**, and **Dash Mantine Components**.  
+Users can upload datasets (CSV/Excel), automatically generate visualizations, explore drill-down analytics, and receive **AI-generated chart insights with Text-to-Speech (TTS)**.
 
-The system includes caching, a chart editor, and click-based data exploration for a complete data-analysis workflow.
+The system also includes **caching**, a **chart editor**, and **click-based data exploration** for a complete data-analysis workflow.
 
-✨ Features
-🔹 1. Upload & Explore Datasets
+---
 
+## Features
+
+### 🔹 1. Upload & Explore Datasets
 Upload CSV/Excel files and instantly visualize data with automatically generated charts.
 
-🔹 2. Auto Chart Generator
+### 🔹 2. Automatic Chart Generator
+The app detects column types and selects suitable chart types like:
+- Bar charts  
+- Line charts  
+- Pie charts  
+- Histograms  
+- Scatter plots  
 
-The app inspects column types and chooses suitable visualizations such as:
+### 🔹 3. Drill-Down Analytics
+Every chart is interactive and clickable:
+- Click any bar, point, or category  
+- A modal opens showing filtered data for that specific value  
+- Includes an automatically generated mini-chart of the subset  
 
-Bar charts
+### 🔹 4. AI-Generated Chart Insights
+Each chart comes with insights powered by LLMs (Gemini / OpenAI).  
+Examples include:
+- Trend summaries  
+- Outlier detection  
+- Category comparisons  
+- Data pattern explanations  
 
-Line charts
+### 🔹 5. Text-to-Speech (TTS)
+All insights can be read aloud using built-in browser TTS — ideal for accessibility and presentations.
 
-Pie charts
+### 🔹 6. Response Caching
+LLM insight responses are cached using:
+- **diskcache**
+- **Hash-based keys** (prompt + dataset)
 
-Histograms
+This makes repeated insights fast and reduces API calls.
 
-Scatter plots
+### 🔹 7. Built-In Chart Editor
+Using **Dash Chart Editor**, users can customize:
+- Axis settings  
+- Encodings  
+- Styles  
+- Chart types  
 
-🔹 3. Drill-Down Analytics
+### 🔹 8. Clean & Responsive UI
+Styled using **Dash Mantine Components** for a modern, responsive experience.
 
-Every chart is clickable:
+---
 
-Click any bar, point, or category
+## Tech Stack
 
-A modal opens showing filtered data for that clicked item
+| Component  | Technology |
+|-----------|------------|
+| Frontend  | Dash + Dash Mantine Components |
+| Charts    | Plotly, Dash Chart Editor |
+| AI Insights | Gemini / OpenAI |
+| Caching   | Diskcache |
+| TTS       | Web Speech API (browser TTS) |
+| Data      | Pandas |
 
-Includes a mini auto-generated chart for the subset
+---
 
-🔹 4. Chart Insights (AI-Generated)
 
-Each chart comes with automatically generated insights powered by an LLM.
-Examples:
 
-Trend summaries
-
-Outlier detection
-
-Category comparisons
-
-Data patterns
-
-🔹 5. Text-to-Speech (TTS) Support
-
-Every insight can be read aloud using built-in TTS.
-Perfect for accessibility and presentations.
-
-🔹 6. Response Caching
-
-LLM responses are cached using:
-
-diskcache
-
-Hash-based keys for prompt+data
-This makes insights fast and avoids unnecessary API calls.
-
-🔹 7. Chart Editor (Dash Chart Editor)
-
-Users can customize charts with:
-
-Axis settings
-
-Encodings
-
-Styles
-
-Chart types
-
-🔹 8. Clean, Responsive UI
-
-Powered by Dash Mantine Components with a modern layout and smooth user experience.
-
-🛠️ Tech Stack
-Component	Technology
-Frontend	Dash + Dash Mantine Components
-Charts	Plotly, Dash Chart Editor
-AI Insights	Gemini / OpenAI models
-Caching	Diskcache
-TTS	Built-in browser TTS
-Data	Pandas
