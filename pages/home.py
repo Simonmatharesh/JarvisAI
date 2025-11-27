@@ -15,6 +15,7 @@ import base64
 import io
 import uuid
 from gtts import gTTS
+from vector_db import add_text, query_text
 from google.ai.generativelanguage_v1beta2 import types
 
 
@@ -341,6 +342,18 @@ def handle_upload(contents):
             dataSources=data_dict,
             style={"display": "block"}
         )
+# -----------------------------
+# ADD COLUMN SUMMARIES TO VECTOR DB
+# -----------------------------
+        for col in df.columns:
+            try:
+                summary_text = f"Column '{col}': min={df[col].min() if df[col].dtype != 'object' else 'N/A'}, " \
+                            f"max={df[col].max() if df[col].dtype != 'object' else 'N/A'}, " \
+                            f"mean={df[col].mean() if df[col].dtype != 'object' else 'N/A'}, " \
+                            f"unique_values={df[col].nunique()}"
+                add_text(summary_text, text_id=f"{col}_{str(uuid.uuid4())}", metadata={"column": col})
+            except:
+                continue
 
         return data_dict, dmc.Text(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns", c="green"), chart_editor, False, False
 
@@ -431,41 +444,13 @@ def handle_chat(chat_clicks, s1, s2, s3, question_value, uploaded_data, cur_chat
             # -----------------------------
             # 1) HIGH-LEVEL DATA SUMMARY
             # -----------------------------
-            numeric_stats = df.describe(include='all', percentiles=[0.25, 0.5, 0.75]).fillna("").to_dict()
-            col_dtypes = {col: str(df[col].dtype) for col in df.columns}
-            col_uniques = {col: df[col].nunique() for col in df.columns}
+            top_contexts = query_text(question_value, top_k=3)  # fetch top 3 relevant column summaries
+            context_text = "\n".join(top_contexts) if top_contexts else "No relevant summary found."
 
-            global_summary_prompt = f"""
-You are an expert data analyst.
-
-You are given a dataset summary:
-- Column data types: {json.dumps(col_dtypes, indent=2)}
-- Unique values per column: {json.dumps(col_uniques, indent=2)}
-- Numeric statistics (min, max, mean, std, quartiles): {json.dumps(numeric_stats, indent=2)}
-
-User question:
-"{question_value}"
-
-Your job is to write a **direct, focused answer to the user's question**.
-
-RULES:
-- DO NOT write a generic dataset summary.
-- ONLY discuss items that relate to the user's actual question.
-- Base everything on the statistics provided.
-- If the user asks about a specific field (example: salary, role, project), focus only on those.
-- If the question is broad, give a high-level cross-column analysis.
-- If the question is specific, give a narrow deep analysis.
-- DO NOT invent data.
-- DO NOT guess missing values.
-
-Your output should be:
-### Key Insights Related to the Question
-<analysis here>
-"""
             if selected_language == "ar":
-                prompt_text = f"أجب على هذا السؤال بناءً على البيانات:\n{global_summary_prompt}"
+                prompt_text = f"أجب على هذا السؤال بناءً على البيانات التالية:\n{context_text}\nسؤال المستخدم: {question_value}"
             else:
-                prompt_text = global_summary_prompt
+                prompt_text = f"Answer this question based on the dataset summaries:\n{context_text}\nUser question: {question_value}"
 
             global_summary = client.generate_content(prompt_text).text.strip()
 
